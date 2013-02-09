@@ -98,10 +98,8 @@
 - (void)webView:(WebView *)webView decidePolicyForMIMEType:(NSString *)type request:(NSURLRequest *)request frame:(WebFrame *)frame decisionListener:(id < WebPolicyDecisionListener >)listener
 {
     if (webView == self.dummyWebView) {
-        if ([type caseInsensitiveCompare:@"text/html"] == NSOrderedSame) {
-            [listener ignore];
-            [[NSWorkspace sharedWorkspace] openURL:request.URL];
-        }
+        [listener ignore];
+        [[NSWorkspace sharedWorkspace] openURL:request.URL];
     }
 }
 
