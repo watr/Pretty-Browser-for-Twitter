@@ -35,17 +35,18 @@
     @"Mobile/10A5376e"
     @" "
     @"Safari/8536.25";
-    NSString *const twitterURLString = @"https://www.twitter.com";
-    [self.webView setMainFrameURL:twitterURLString];
     
     self.dummyWebView = [[DummyWebView alloc] init];
     self.dummyWebView.resourceLoadDelegate = self;
     self.dummyWebView.policyDelegate = self;
+    
+    NSString *const twitterURLString = @"https://www.twitter.com";
+    [self.webView.mainFrame loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:twitterURLString]]];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-
+    ;
 }
 
 - (void)applicationWillBecomeActive:(NSNotification *)notification
@@ -101,6 +102,14 @@
         [listener ignore];
         [[NSWorkspace sharedWorkspace] openURL:request.URL];
     }
+}
+
+#pragma mark WebFrameLoadDelegate
+
+- (void)webView:(WebView *)sender didFinishLoadForFrame:(WebFrame *)frame {
+    NSScrollView *mainScrollView = sender.mainFrame.frameView.documentView.enclosingScrollView;
+    [mainScrollView setVerticalScrollElasticity:NSScrollElasticityNone];
+    [mainScrollView setHorizontalScrollElasticity:NSScrollElasticityNone];
 }
 
 #pragma mark -
