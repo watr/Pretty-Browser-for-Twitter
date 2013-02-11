@@ -9,13 +9,20 @@
 #import "AppDelegate.h"
 
 @interface DummyWebView : WebView
-
 @end
 
 @implementation DummyWebView
-
 @end
 
+@interface AppDelegate ()
+@property (strong) NSTimer *intervalTimer;
+@property (copy) NSString *lastTab;
+@property (strong) NSMutableDictionary *updatedDateDictionary;
+- (void)startIntervalTimer;
+- (void)invalidateIntervalTimer;
+- (void)check;
+- (void)setLastUpdatedDate:(NSDate *)updatedDate forTab:(NSString *)tabString;
+@end
 
 @implementation AppDelegate
 
@@ -44,9 +51,19 @@
     [self.webView.mainFrame loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:twitterURLString]]];
 }
 
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.updatedDateDictionary = [NSMutableDictionary dictionary];
+        self.updateInterval = 1.0 * 60.0;
+    }
+    return self;
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-    ;
+    [self startIntervalTimer];
 }
 
 - (void)applicationWillBecomeActive:(NSNotification *)notification
@@ -81,7 +98,6 @@
             for (NSURL *const aURL in urls) {
                 NSString *path = [aURL relativePath];
                 [resultListener chooseFilename:path];
-                
             }
         }
             break;
@@ -107,11 +123,105 @@
 #pragma mark WebFrameLoadDelegate
 
 - (void)webView:(WebView *)sender didFinishLoadForFrame:(WebFrame *)frame {
-    NSScrollView *mainScrollView = sender.mainFrame.frameView.documentView.enclosingScrollView;
-    [mainScrollView setVerticalScrollElasticity:NSScrollElasticityNone];
-    [mainScrollView setHorizontalScrollElasticity:NSScrollElasticityNone];
+    ;
 }
 
 #pragma mark -
+
+- (void)startIntervalTimer
+{
+    if (self.intervalTimer == nil) {
+        NSTimer *intervalTimer = [NSTimer scheduledTimerWithTimeInterval:1.0
+                                                                  target:self
+                                                                selector:@selector(check)
+                                                                userInfo:nil
+                                                                 repeats:YES];
+        self.intervalTimer = intervalTimer;
+    }
+}
+
+- (void)invalidateIntervalTimer
+{
+    if (self.intervalTimer != nil) {
+        [self.intervalTimer invalidate];
+        self.intervalTimer = nil;
+    }
+}
+
+- (void)check
+{
+    if (self.webView.isLoading) {
+        return;
+    }
+        
+    NSDate *checkDate = [NSDate date];
+    NSString *activeTab = nil;
+    NSString *href = nil;
+    [self getActiveTab:&activeTab
+         rootURLString:&href];    
+    if (self.lastTab == nil || [self.lastTab caseInsensitiveCompare:activeTab] != NSOrderedSame) {
+        self.lastTab = activeTab;
+        [self setLastUpdatedDate:checkDate
+                          forTab:activeTab];
+    }
+    else {
+        NSAssert(checkDate != nil, @"check date is nil");
+        NSAssert(self.updateInterval > 0, @"update interval is smaller than 0");
+        
+        NSString *relativePath = [[NSURL URLWithString:self.webView.mainFrameURL] relativePath];
+        NSDate *lastUpdatedDate = [self.updatedDateDictionary objectForKey:activeTab];
+        if ([href caseInsensitiveCompare:relativePath] == NSOrderedSame &&
+            [checkDate timeIntervalSinceDate:lastUpdatedDate] > self.updateInterval)
+        {
+            NSInteger yOffset = [[self.webView stringByEvaluatingJavaScriptFromString:@"pageYOffset"] integerValue];
+            if (yOffset <= 0) {
+                [self.webView stringByEvaluatingJavaScriptFromString:[self javaScriptStringForDisplayActiveTab]];
+                [self setLastUpdatedDate:checkDate
+                                  forTab:activeTab];
+            }
+        }
+    }
+}
+
+- (void)setLastUpdatedDate:(NSDate *)updatedDate forTab:(NSString *)tabString
+{
+    NSAssert(self.updatedDateDictionary != nil, @"updated dictionary must NOT be nil");
+    [self.updatedDateDictionary setObject:updatedDate
+                                   forKey:tabString];
+}
+
+@end
+
+@implementation AppDelegate (Twitter)
+
+- (NSString *)javaScriptStringForActiveTabAttribute:(NSString *)attributeKey
+{
+    NSString *activeTabClassString = @"navItem active";
+    return [NSString stringWithFormat:
+            @"document.getElementsByClassName('%@')[0].getAttribute('%@')",
+            activeTabClassString, attributeKey];
+}
+
+- (void)getActiveTab:(NSString **)tabString rootURLString:(NSString **)rootURLString
+{
+    if (tabString != nil) {
+        NSString *tab = [self.webView stringByEvaluatingJavaScriptFromString:
+                               [self javaScriptStringForActiveTabAttribute:@"tab"]];
+        *tabString = tab;
+    }
+    if (rootURLString != nil) {
+        NSString *href = [self.webView stringByEvaluatingJavaScriptFromString:
+                             [self javaScriptStringForActiveTabAttribute:@"href"]];
+        *rootURLString = href;
+    }
+}
+
+- (NSString *)javaScriptStringForDisplayActiveTab
+{
+    return
+    @"var event = document.createEvent('MouseEvents');"
+    @"event.initMouseEvent( 'click', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+    @"document.getElementsByClassName('navItem active')[0].dispatchEvent( event );";
+}
 
 @end

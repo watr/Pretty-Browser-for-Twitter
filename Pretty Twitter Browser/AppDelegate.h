@@ -11,8 +11,18 @@
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 
-@property (assign) IBOutlet NSWindow *window;
-@property (weak) IBOutlet WebView *webView;
+@property (weak)   IBOutlet NSWindow *window;
+@property (weak)   IBOutlet WebView *webView;
 @property (strong) WebView *dummyWebView;
+@property (assign) NSTimeInterval updateInterval;
+@property (assign) BOOL bounces;
 
+@end
+
+@interface AppDelegate (Twitter)
+
+- (NSString *)javaScriptStringForActiveTabAttribute:(NSString *)attributeKey;
+- (void)getActiveTab:(NSString **)tabString rootURLString:(NSString **)rootURLString;
+
+- (NSString *)javaScriptStringForDisplayActiveTab;
 @end
